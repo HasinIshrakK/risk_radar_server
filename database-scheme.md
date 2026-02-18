@@ -1,5 +1,7 @@
 # RiskRadar – Entity Relationship Design
 
+![Database Schema Diagram](Scheme.jpeg)
+
 ## 📌 Entities
 
 The system contains the following core entities:
