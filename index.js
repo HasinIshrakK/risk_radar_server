@@ -80,10 +80,12 @@ async function run() {
                 let riskScore = count * 20;
                 let status = "SAFE";
                 let alert = false;
+                let reason = "";
 
                 if (count >= 3) {
-                    status = "REVIEW_REQUIRED";
+                    status = "Review required";
                     alert = true;
+                    reason = "Multiple rapid transaction detected within 5 minutes";
                 }
 
                 res.status(200).json({
