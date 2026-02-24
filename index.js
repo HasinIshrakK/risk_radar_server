@@ -17,13 +17,13 @@ redisClient.on("error", (err) => console.log("Redis Client Error", err));
 (async () => {
     try {
         await redisClient.connect();
-        console.log("Connected to Redis");
-        console.log("Redis Connected Successfully ✅");
+        // console.log("Connected to Redis");
+        console.log("Redis Connected Successfully ");
 
         // Test set & get
-        await redisClient.set("user:123:txn_count", 5);
-        const count = await redisClient.get("user:123:txn_count");
-        console.log("Transaction count from Redis:", count);
+        // await redisClient.set("user:123:txn_count", 5);
+        // const count = await redisClient.get("user:123:txn_count");
+        // console.log("Transaction count from Redis:", count);
     } catch (err) {
         console.error("Redis Connection Error:", err);
     }
@@ -62,18 +62,18 @@ async function run() {
             try {
                 const { userId, amount } = req.body;
 
-                if (!userId) {
-                    return res.status(400).json({ message: "userId is required" });
+                if (!userId || !amount) {
+                    return res.status(400).json({ message: "userId and amount required" });
                 }
 
+                // redis coint
                 const key = `rapid_tx:${userId}`;
 
-                // INCREMENT transaction count
                 const count = await redisClient.incr(key);
 
-                // If first transaction, set 5 min expiry (300 seconds)
+                // set ttl 2 min
                 if (count === 1) {
-                    await redisClient.expire(key, 300);
+                    await redisClient.expire(key, 120);
                 }
 
                 // Risk Logic
