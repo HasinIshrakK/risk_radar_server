@@ -6,7 +6,11 @@ const { MongoClient, ServerApiVersion } = require('mongodb');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+// middleware
+app.use(cors());
+app.use(express.json());
 
+// connect redis
 const redisClient = Redis.createClient({
     url: process.env.REDIS_URL || 'redis://localhost:6379'
 });
@@ -20,17 +24,12 @@ redisClient.on("error", (err) => console.log("Redis Client Error", err));
         // console.log("Connected to Redis");
         console.log("Redis Connected Successfully ");
 
-        // Test set & get
-        // await redisClient.set("user:123:txn_count", 5);
-        // const count = await redisClient.get("user:123:txn_count");
-        // console.log("Transaction count from Redis:", count);
     } catch (err) {
         console.error("Redis Connection Error:", err);
     }
 })();
 
-app.use(cors());
-app.use(express.json());
+// Mongodb
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_USER_PASS}@cluster0.rwnir9j.mongodb.net/risk_radar`;
 const client = new MongoClient(uri, {
@@ -39,8 +38,12 @@ const client = new MongoClient(uri, {
 
 async function run() {
     try {
+        // 
         await client.connect();
         console.log("Successfully connected to MongoDB.");
+        const db = client.db("risk_radar");
+        const transactionCollection = db.collection("transaction");
+
 
         app.get('/', async (req, res) => {
             try {
@@ -85,8 +88,34 @@ async function run() {
                 if (count >= 3) {
                     status = "Review required";
                     alert = true;
-                    reason = "Multiple rapid transaction detected within 5 minutes";
+                    reason = "Multiple rapid transaction detected within 2 minutes";
                 }
+                // MONGODB SAVE
+
+                await transactionCollection.updateOne(
+                    {userId: userId},
+                    {
+                        $set: {
+                            lastAmount: amount,
+                            riskScore: riskScore,
+                            status: status,
+                            alert: alert,
+                            reason: reason,
+                            lastUpdated: new Date()
+                        },
+                        
+                         $inc:{
+                            totalTransaction: 1
+                         },
+                         $setOnInsert:{
+                            createdAt: new Date()
+                         },
+                        
+                    },
+                    {
+                        upsert:true
+                    }
+                );
 
                 res.status(200).json({
                     userId,
