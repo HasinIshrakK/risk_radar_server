@@ -6,7 +6,11 @@ const { MongoClient, ServerApiVersion } = require('mongodb');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+// middleware
+app.use(cors());
+app.use(express.json());
 
+// connect redis
 const redisClient = Redis.createClient({
     url: process.env.REDIS_URL || 'redis://localhost:6379'
 });
@@ -17,20 +21,15 @@ redisClient.on("error", (err) => console.log("Redis Client Error", err));
 (async () => {
     try {
         await redisClient.connect();
-        console.log("Connected to Redis");
-        console.log("Redis Connected Successfully ✅");
+        // console.log("Connected to Redis");
+        console.log("Redis Connected Successfully ");
 
-        // Test set & get
-        await redisClient.set("user:123:txn_count", 5);
-        const count = await redisClient.get("user:123:txn_count");
-        console.log("Transaction count from Redis:", count);
     } catch (err) {
         console.error("Redis Connection Error:", err);
     }
 })();
 
-app.use(cors());
-app.use(express.json());
+// Mongodb
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_USER_PASS}@cluster0.rwnir9j.mongodb.net/risk_radar`;
 const client = new MongoClient(uri, {
@@ -39,8 +38,12 @@ const client = new MongoClient(uri, {
 
 async function run() {
     try {
+        // 
         await client.connect();
         console.log("Successfully connected to MongoDB.");
+        const db = client.db("risk_radar");
+        const transactionCollection = db.collection("transaction");
+
 
         app.get('/', async (req, res) => {
             try {
@@ -62,36 +65,66 @@ async function run() {
             try {
                 const { userId, amount } = req.body;
 
-                if (!userId) {
-                    return res.status(400).json({ message: "userId is required" });
+                if (!userId || !amount) {
+                    return res.status(400).json({ message: "userId and amount required" });
                 }
 
+                // redis coint
                 const key = `rapid_tx:${userId}`;
 
-                // INCREMENT transaction count
                 const count = await redisClient.incr(key);
 
-                // If first transaction, set 5 min expiry (300 seconds)
+                // set ttl 2 min
                 if (count === 1) {
-                    await redisClient.expire(key, 300);
+                    await redisClient.expire(key, 120);
                 }
 
                 // Risk Logic
                 let riskScore = count * 20;
                 let status = "SAFE";
                 let alert = false;
+                let reason = "";
 
                 if (count >= 3) {
-                    status = "REVIEW_REQUIRED";
+                    status = "Review required";
                     alert = true;
+                    reason = "Multiple rapid transaction detected within 2 minutes";
                 }
+                // MONGODB SAVE
+
+                await transactionCollection.updateOne(
+                    {userId: userId},
+                    {
+                        $set: {
+                            lastAmount: amount,
+                            riskScore: riskScore,
+                            status: status,
+                            alert: alert,
+                            reason: reason,
+                            lastUpdated: new Date()
+                        },
+                        
+                         $inc:{
+                            totalTransaction: 1
+                         },
+                         $setOnInsert:{
+                            createdAt: new Date()
+                         },
+                        
+                    },
+                    {
+                        upsert:true
+                    }
+                );
 
                 res.status(200).json({
                     userId,
-                    transactionCountLast5Min: count,
+                    amount,
+                    transactionCountLast2Min: count,
                     riskScore,
                     status,
                     alert,
+                    reason
                 });
             } catch (error) {
                 console.error(error);
