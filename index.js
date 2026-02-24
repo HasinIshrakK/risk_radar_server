@@ -119,10 +119,12 @@ async function run() {
 
                 res.status(200).json({
                     userId,
-                    transactionCountLast5Min: count,
+                    amount,
+                    transactionCountLast2Min: count,
                     riskScore,
                     status,
                     alert,
+                    reason
                 });
             } catch (error) {
                 console.error(error);
