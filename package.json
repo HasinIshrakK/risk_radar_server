@@ -5,7 +5,8 @@
     "express.js": "^1.0.0",
     "mongodb": "^7.1.0",
     "redis": "^5.11.0",
-    "redis-server": "^1.2.2"
+    "redis-server": "^1.2.2",
+    "stripe": "^20.4.0"
   },
   "name": "risk_radar_server",
   "version": "1.0.0",
