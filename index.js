@@ -58,7 +58,7 @@ async function run() {
 
         // creating basic transaction api
 
-        app.post("/transaction", async (req, res) => {
+        app.post("/api/analyze-transaction", async (req, res) => {
             try {
                 const { userId, amount } = req.body;
 
@@ -98,6 +98,9 @@ async function run() {
                 res.status(500).json({ message: "Something went wrong" });
             }
         });
+
+        // routes
+        app.use("/api/payment", require("./routers/payment"));
 
         app.listen(PORT, () => {
             console.log(`Server is running on port: ${PORT}`);
