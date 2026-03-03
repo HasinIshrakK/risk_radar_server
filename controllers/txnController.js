@@ -1,12 +1,16 @@
 const { redisClient } = require('../config/redis');
+const {getDB} = require("../config/db")
 
 exports.analyzeTransaction = async (req, res) => {
     try {
         const { userId, amount } = req.body;
 
-        if (!userId) {
-            return res.status(400).json({ message: "userId is required" });
+         if (!userId || !amount) {
+            return res.status(400).json({ message: "userId and amount required" });
         }
+
+         const db = getDB();
+        const transactionCollection = db.collection("transaction");
 
         const key = `rapid_tx:${userId}`;
 
@@ -22,11 +26,32 @@ exports.analyzeTransaction = async (req, res) => {
         let riskScore = count * 20;
         let status = "SAFE";
         let alert = false;
+        let reason = "";
 
         if (count >= 3) {
             status = "REVIEW_REQUIRED";
             alert = true;
+             reason = "Multiple rapid transaction detected within 5 minutes";
         }
+
+         // MongoDB Save
+        await transactionCollection.updateOne(
+            { userId },
+            {
+                $set: {
+                    lastAmount: amount,
+                    riskScore,
+                    status,
+                    alert,
+                    reason,
+                    lastUpdated: new Date(),
+                },
+                $inc: { totalTransaction: 1 },
+                $setOnInsert: { createdAt: new Date() }
+            },
+            { upsert: true }
+        );
+
 
         res.status(200).json({
             userId,
@@ -34,6 +59,7 @@ exports.analyzeTransaction = async (req, res) => {
             riskScore,
             status,
             alert,
+            reason,
         });
     } catch (error) {
         console.error(error);

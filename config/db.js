@@ -5,10 +5,23 @@ const client = new MongoClient(uri, {
     serverApi: { version: ServerApiVersion.v1, strict: true, deprecationErrors: true }
 });
 
+// const connectDB = async () => {
+//     await client.connect();
+//     console.log("✅ MongoDB Connected");
+//     return client.db('risk_radar'); 
+// };
+
+// module.exports = { connectDB, client };
+
+
+let db;
+
 const connectDB = async () => {
     await client.connect();
+    db = client.db('risk_radar');
     console.log("✅ MongoDB Connected");
-    return client.db('risk_radar'); 
 };
 
-module.exports = { connectDB, client };
+const getDB = () => db;
+
+module.exports = { connectDB, getDB };
