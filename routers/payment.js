@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const axios = require("axios");
 const stripeService = require("../services/stripeService");
+const { updatePaymentStatus } = require("../controllers/paymentController");
 
 // When user clicks "Pay"
 router.post("/checkout", async (req, res) => {
@@ -53,5 +54,8 @@ router.post("/checkout", async (req, res) => {
     });
   }
 });
+
+// patch route to update payment status pending to paid from success page
+router.patch("/payment-success", updatePaymentStatus);
 
 module.exports = router;

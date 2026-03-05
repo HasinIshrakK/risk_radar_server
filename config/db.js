@@ -23,5 +23,5 @@ const connectDB = async () => {
 };
 
 const getDB = () => db;
-
-module.exports = { connectDB, getDB };
+// add client in this line
+module.exports = { connectDB, getDB ,client};
