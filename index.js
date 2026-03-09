@@ -1,7 +1,7 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion } = require('mongodb');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -14,45 +14,34 @@ app.use(express.json());
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_USER_PASSWORD}@cluster0.w0nmtjl.mongodb.net/?appName=Cluster0`;
 
 
-
 const client = new MongoClient(uri, {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
-  },
+    serverApi: {
+        version: ServerApiVersion.v1,
+        strict: true,
+        deprecationErrors: true,
+    }
 });
 
 // --- Database Connection & Server Start ---
-
 async function run() {
-  try {
-    await client.connect();
+    try {
+        await client.connect();
+        
+        const db = client.db("risk_radar"); 
+        console.log("Successfully connected to MongoDB.");
 
-    const db = client.db("risk_radar");
-    const highAmountCollections = db.collection("high_amount");
-    
+        // --- Routes ---
+        app.get('/', (req, res) => {
+            res.status(200).json({ message: 'RiskRadar API is healthy' });
+        });
 
-    app.get("/high-amount", async (req, res) => {
-      const cursor = highAmountCollections.find();
-      const result =  await cursor.toArray();
-      res.send(result);
-    });
+        app.listen(PORT, () => {
+            console.log(`Server is running on port: ${PORT}`);
+        });
 
-
-    // ping
-    await client.db("admin").command({ ping: 1 });
-    console.log(
-      "Pinged your deployment. You successfully connected to MongoDB!",
-    );
-  } finally {
-  }
+    } catch (error) {
+        console.error("Failed to connect to the database:", error);
+    }
 }
 
 run().catch(console.dir);
-
-// HOME
-app.get("/", (req, res) => res.send("Risk-Radar Backend Running!"));
-
-// Start server
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
