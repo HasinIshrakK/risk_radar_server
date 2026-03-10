@@ -29,13 +29,19 @@ router.post("/checkout", async (req, res) => {
     );
 
     const { riskScore, status } = fraudResponse.data;
-
-    // Decide what to do
+    
+    // Fraud detected but allow payment
     if (status === "REVIEW_REQUIRED") {
-      return res.status(403).json({
-        message: "Transaction review rquired due to high fraud risk",
-      });
+      console.log("Suspicious transaction detected for user:", userId);
     }
+
+    // this logic block user immideatly
+
+    // if (status === "REVIEW_REQUIRED") {
+    //   return res.status(403).json({
+    //     message: "Transaction review rquired due to high fraud risk",
+    //   });
+    // }
 
     // If safe → proceed to Stripe or payment gateway
     // return res.status(200).json({
