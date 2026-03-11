@@ -1,7 +1,13 @@
+const { client } = require('../config/db');
 const stripe = require("stripe")(process.env.STRIPE_SECRET);
 
 const createCheckoutSession = async (paymentInfo) => {
-  const amount = parseInt(paymentInfo.price) * 100;
+  // const amount = parseInt(paymentInfo.amount) * 100;
+   const rawAmount = Number(paymentInfo.amount); // amount from frontend
+  if (isNaN(rawAmount) || rawAmount <= 0) {
+    throw new Error("Invalid payment amount");
+  }
+  const amountInCents = Math.round(rawAmount * 100); 
 
   const session = await stripe.checkout.sessions.create({
     line_items: [
@@ -9,7 +15,7 @@ const createCheckoutSession = async (paymentInfo) => {
         price_data: {
           currency: "usd",
 
-          unit_amount: amount,
+          unit_amount: amountInCents,
 
           product_data: {
             name: `Please pay for: ${paymentInfo.name}`,
@@ -26,6 +32,7 @@ const createCheckoutSession = async (paymentInfo) => {
       plansId: paymentInfo.plansId,
 
       plansName: paymentInfo.name,
+      userId: paymentInfo.userId,
     },
 
     customer_email: paymentInfo.email,
@@ -35,7 +42,19 @@ const createCheckoutSession = async (paymentInfo) => {
     cancel_url: `${process.env.SITE_DOMAIN}/dashboard/payment-cancel`,
   });
 
+  // mongodb save
   
+const paymentsCollection = client.db("risk_radar").collection("payments")
+  await paymentsCollection.insertOne({
+    userId: paymentInfo.userId,
+    email: paymentInfo.email,
+    planName: paymentInfo.name,
+    planId: paymentInfo.plansId,
+     price: rawAmount,
+    sessionId: session.id,
+    status: "pending",
+    createdAt: new Date(),
+  });
 
   return session;
 };
