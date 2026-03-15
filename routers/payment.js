@@ -3,11 +3,23 @@ const router = express.Router();
 const axios = require("axios");
 const stripeService = require("../services/stripeService");
 const { updatePaymentStatus } = require("../controllers/paymentController");
+const { client } = require('../config/db');
+const { ObjectId } = require("mongodb");
+
+const usersCollection = client.db("risk_radar").collection("users");
 
 // When user clicks "Pay"
 router.post("/checkout", async (req, res) => {
   try {
     const { userId, amount, ipAddress } = req.body;
+
+    // Check if user is already blocked
+    const user = await usersCollection.findOne({ _id: new ObjectId(userId) });
+    if (user?.status === "BLOCKED") {
+      return res.status(403).json({
+        message: "Your account is blocked due to multiple suspicious transactions.",
+      });
+    }
 
     const transactionData = {
       userId,
