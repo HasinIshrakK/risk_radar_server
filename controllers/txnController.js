@@ -60,22 +60,33 @@ exports.analyzeTransaction = async (req, res) => {
     
 
     // MongoDB Save
-    await transactionCollection.updateOne(
-      { userId },
-      {
-        $set: {
-          lastAmount: amount,
-          riskScore,
-          status,
-          alert,
-          reason,
-          lastUpdated: new Date(),
-        },
-        $inc: { totalTransaction: 1 },
-        $setOnInsert: { createdAt: new Date() },
-      },
-      { upsert: true },
-    );
+    // await transactionCollection.updateOne(
+    //   { userId },
+    //   {
+    //     $set: {
+    //       lastAmount: amount,
+    //       riskScore,
+    //       status,
+    //       alert,
+    //       reason,
+    //       lastUpdated: new Date(),
+    //     },
+    //     $inc: { totalTransaction: 1 },
+    //     $setOnInsert: { createdAt: new Date() },
+    //   },
+    //   { upsert: true },
+    // );
+
+    await transactionCollection.insertOne({
+  userId,
+  amount,
+  riskScore,
+  status,
+  alert,
+  reason,
+  transactionCountLast5Min: count,
+  createdAt: new Date(createdAt),
+});
 
     res.status(200).json({
       userId,
