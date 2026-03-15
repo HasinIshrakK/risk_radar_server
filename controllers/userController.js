@@ -33,6 +33,8 @@ exports.createUser = async (req, res) => {
             name, 
             email, 
             password,
+            fraudFlags: 0,   
+            status: "ACTIVE",
             createdAt: new Date() 
         });
 
