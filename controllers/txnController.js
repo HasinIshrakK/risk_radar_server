@@ -1,5 +1,6 @@
 const { redisClient } = require("../config/redis");
 const { getDB } = require("../config/db");
+const { ObjectId } = require("mongodb");
 
 exports.analyzeTransaction = async (req, res) => {
   try {
@@ -11,6 +12,7 @@ exports.analyzeTransaction = async (req, res) => {
 
     const db = getDB();
     const transactionCollection = db.collection("transaction");
+    const usersCollection = db.collection("users");
 
     const key = `rapid_tx:${userId}`;
 
@@ -57,7 +59,29 @@ exports.analyzeTransaction = async (req, res) => {
     if (riskScore >= 60) {
       status = "REVIEW_REQUIRED";
     }
-    
+
+    // AUTO FLAG + BLOCK LOGIC
+    if (alert) {
+      const user = await usersCollection.findOne({
+        _id: new ObjectId(userId), // important fix
+      });
+
+      const currentFlags = user?.fraudFlags || 0;
+      const newFlags = currentFlags + 1;
+
+      let updateData = {
+        fraudFlags: newFlags,
+      };
+
+      if (newFlags >= 3) {
+        updateData.status = "BLOCKED";
+      }
+
+      await usersCollection.updateOne(
+        { _id: new ObjectId(userId) },
+        { $set: updateData },
+      );
+    }
 
     // MongoDB Save
     // await transactionCollection.updateOne(
@@ -78,15 +102,15 @@ exports.analyzeTransaction = async (req, res) => {
     // );
 
     await transactionCollection.insertOne({
-  userId,
-  amount,
-  riskScore,
-  status,
-  alert,
-  reason,
-  transactionCountLast5Min: count,
-  createdAt: new Date(createdAt),
-});
+      userId,
+      amount,
+      riskScore,
+      status,
+      alert,
+      reason,
+      transactionCountLast5Min: count,
+      createdAt: new Date(createdAt),
+    });
 
     res.status(200).json({
       userId,
