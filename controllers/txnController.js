@@ -24,41 +24,87 @@ exports.analyzeTransaction = async (req, res) => {
       await redisClient.expire(key, 300);
     }
 
-    // Risk Logic
-    let riskScore = count * 20;
+    // Risk Logic old
+    // let riskScore = count * 20;
+    // let status = "SAFE";
+    // let alert = false;
+    // let reason = "";
+
+    // new final risk engine
+
+    let riskScore = 0;
     let status = "SAFE";
     let alert = false;
-    let reason = "";
+    let reasons = [];
 
-    // Midnight Detection
+   
+    // Rapid Transaction Rule old
+    // if (count >= 3) {
+    //   alert = true;
+
+    //   if (reason) {
+    //     reason += " | ";
+    //   }
+
+    //   reason += "Multiple rapid transaction detected within 5 minutes";
+    // }
+
+    
+    // new rapid transaction
+
+    if (count >= 3) {
+      riskScore += 40;
+      alert = true;
+      reasons.push("Multiple rapid transactions within 5 minutes");
+    }
+
+     // Midnight Detection old
+    // const hour = new Date(createdAt).getHours();
+
+    // if (hour >= 0 && hour < 4) {
+    //   riskScore += 20;
+    //   alert = true;
+
+    //   if (reason) {
+    //     reason += " | ";
+    //   }
+
+    //   reason += "Transaction during midnight hours";
+    // }
+
+
+    // midnight detection new
+
     const hour = new Date(createdAt).getHours();
-
-    if (hour >= 0 && hour < 4) {
+    if (hour >= 12 && hour < 16) {
       riskScore += 20;
       alert = true;
-
-      if (reason) {
-        reason += " | ";
-      }
-
-      reason += "Transaction during midnight hours";
+      reasons.push("Transaction during suspicious daytime (12PM - 16 PM)");
     }
 
-    // Rapid Transaction Rule
-    if (count >= 3) {
+    // high amount detection
+
+     if (amount > 500) {
+      riskScore += 30;
       alert = true;
-
-      if (reason) {
-        reason += " | ";
-      }
-
-      reason += "Multiple rapid transaction detected within 5 minutes";
+      reasons.push("High transaction amount");
     }
 
-    // Final Risk Decision
-    if (riskScore >= 60) {
+
+    // Final Risk Decision old
+    // if (riskScore >= 60) {
+    //   status = "REVIEW_REQUIRED";
+    // }
+
+    // final risk status new
+
+     if (riskScore >= 80) {
+      status = "HIGH_RISK";
+    } else if (riskScore >= 60) {
       status = "REVIEW_REQUIRED";
     }
+
+    const reason = reasons.join(" | ");
 
     // AUTO FLAG + BLOCK LOGIC
     if (alert) {
