@@ -17,7 +17,7 @@ const client = new MongoClient(uri, {
 let db;
 
 const connectDB = async () => {
-    await client.connect();
+    // await client.connect();
     db = client.db('risk_radar');
     console.log("✅ MongoDB Connected");
 };
