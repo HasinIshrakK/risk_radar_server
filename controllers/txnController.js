@@ -1,92 +1,32 @@
-const { redisClient } = require("../config/redis");
-const { getDB } = require("../config/db");
+const fraudEngine = require("../services/fraudEngine");
+const cacheService = require("../services/cacheService");
 
 exports.analyzeTransaction = async (req, res) => {
   try {
-    const { userId, amount, createdAt } = req.body;
-
-    if (!userId || !amount) {
-      return res.status(400).json({ message: "userId and amount required" });
-    }
-
-    const db = getDB();
-    const transactionCollection = db.collection("transaction");
-
-    const key = `rapid_tx:${userId}`;
-
-    // INCREMENT transaction count
-    const count = await redisClient.incr(key);
-
-    // If first transaction, set 5 min expiry (300 seconds)
-    if (count === 1) {
-      await redisClient.expire(key, 300);
-    }
-
-    // Risk Logic
-    let riskScore = count * 20;
-    let status = "SAFE";
-    let alert = false;
-    let reason = "";
-
-    // Midnight Detection
-    const hour = new Date(createdAt).getHours();
-
-    if (hour >= 0 && hour < 4) {
-      riskScore += 20;
-      alert = true;
-
-      if (reason) {
-        reason += " | ";
-      }
-
-      reason += "Transaction during midnight hours";
-    }
-
-    // Rapid Transaction Rule
-    if (count >= 3) {
-      alert = true;
-
-      if (reason) {
-        reason += " | ";
-      }
-
-      reason += "Multiple rapid transaction detected within 5 minutes";
-    }
-
-    // Final Risk Decision
-    if (riskScore >= 60) {
-      status = "REVIEW_REQUIRED";
-    }
+    const { userId, amount, createdAt = new Date() } = req.body;
     
+    // 1. Fetch context (Redis)
+    const count = await cacheService.getRecentTxCount(userId);
 
-    // MongoDB Save
-    await transactionCollection.updateOne(
+    // 2. Run through Rules Engine
+    const { score, reasons, status } = fraudEngine.evaluateRisk({ 
+      userId, amount, createdAt, count 
+    });
+
+    // 3. Async Logging (Don't make the user wait for DB write if possible)
+    const db = getDB();
+    await db.collection("transaction").updateOne(
       { userId },
       {
-        $set: {
-          lastAmount: amount,
-          riskScore,
-          status,
-          alert,
-          reason,
-          lastUpdated: new Date(),
-        },
+        $set: { lastAmount: amount, riskScore: score, status, reason: reasons, lastUpdated: new Date() },
         $inc: { totalTransaction: 1 },
-        $setOnInsert: { createdAt: new Date() },
+        $setOnInsert: { createdAt: new Date() }
       },
-      { upsert: true },
+      { upsert: true }
     );
 
-    res.status(200).json({
-      userId,
-      transactionCountLast5Min: count,
-      riskScore,
-      status,
-      alert,
-      reason,
-    });
+    res.status(200).json({ userId, score, status, reasons });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Something went wrong" });
+    res.status(500).json({ error: "Internal processing error" });
   }
 };

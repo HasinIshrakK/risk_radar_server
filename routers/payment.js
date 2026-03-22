@@ -7,61 +7,41 @@ const { updatePaymentStatus } = require("../controllers/paymentController");
 // When user clicks "Pay"
 router.post("/checkout", async (req, res) => {
   try {
-    const { userId, amount, ipAddress } = req.body;
+    const { userId, amount } = req.body;
 
-    const transactionData = {
+    // 1. Mandatory Fraud Analysis
+    const fraudResponse = await axios.post(`${process.env.SERVER_URL}/api/analyze-transaction`, {
       userId,
       amount,
-      ipAddress,
-      timestamp: new Date().toISOString(),
-      device: req.headers["user-agent"],
-    };
+      ipAddress: req.ip // Trusting req.body for IP is a bad idea
+    });
 
-    // Calling fraud API
-    const fraudResponse = await axios.post(
-      "http://localhost:3000/api/analyze-transaction",
-      transactionData,
-      // {
-      //     headers: {
-      //         "x-api-key": process.env.FRAUD_API_KEY
-      //     }
-      // }
-    );
+    const { status, riskScore } = fraudResponse.data;
 
-    const { riskScore, status } = fraudResponse.data;
-    
-    // Fraud detected but allow payment
-    if (status === "REVIEW_REQUIRED") {
-      console.log("Suspicious transaction detected for user:", userId);
+    // 2. The Hard Stop (Don't just log it, BLOCK it)
+    if (status === "REVIEW_REQUIRED" || riskScore > 80) {
+      return res.status(403).json({
+        message: "Security check triggered. Your transaction is under manual review.",
+        code: "FRAUD_ALERT"
+      });
     }
 
-    // this logic block user immideatly
-
-    // if (status === "REVIEW_REQUIRED") {
-    //   return res.status(403).json({
-    //     message: "Transaction review rquired due to high fraud risk",
-    //   });
-    // }
-
-    // If safe → proceed to Stripe or payment gateway
-    // return res.status(200).json({
-    //     message: "Transaction approved. Proceeding to payment..."
-    // });
-
-    const session = await stripeService.createCheckoutSession(req.body);
-
-    return res.send({
-      url: session.url,
+    // 3. Only reach Stripe if the Gatekeeper says "Go"
+    const session = await stripeService.createCheckoutSession({
+      userId,
+      amount,
+      metadata: { fraudStatus: status } // Pass status to Stripe for records
     });
+
+    return res.json({ url: session.url });
+
   } catch (error) {
-    console.log(error);
-    return res.status(500).json({
-      message: "Payment processing failed",
-    });
+    console.error("Checkout Error:", error.message);
+    return res.status(500).json({ message: "Internal Server Error" });
   }
 });
 
 // patch route to update payment status pending to paid from success page
-router.patch("/payment-success", updatePaymentStatus);
+// router.patch("/payment-success", updatePaymentStatus);
 
 module.exports = router;
