@@ -10,7 +10,7 @@ router.post("/checkout", async (req, res) => {
     const { userId, amount } = req.body;
 
     // 1. Mandatory Fraud Analysis
-    const fraudResponse = await axios.post(`${SERVER_URL}/api/analyze-transaction`, {
+    const fraudResponse = await axios.post(`${process.env.SERVER_URL}/api/analyze-transaction`, {
       userId,
       amount,
       ipAddress: req.ip // Trusting req.body for IP is a bad idea
