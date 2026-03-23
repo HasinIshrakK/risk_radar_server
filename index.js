@@ -1,4 +1,8 @@
 require("dotenv").config();
+
+// const config = require('./config/env');
+// config.checkConfig(); // Crash early with a useful error if a key is missing!
+
 const app = require("./app");
 const { connectDB } = require("./config/db");
 const { connectRedis } = require("./config/redis");
