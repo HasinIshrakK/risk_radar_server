@@ -29,6 +29,7 @@ const createCheckoutSession = async (paymentInfo) => {
       plansId: paymentInfo.plansId,
       plansName: paymentInfo.name,
       userId: paymentInfo.userId,
+      amount: rawAmount,
     },
 
     customer_email: paymentInfo.email,
@@ -45,6 +46,7 @@ const createCheckoutSession = async (paymentInfo) => {
     email: paymentInfo.email,
     planName: paymentInfo.name,
     planId: paymentInfo.plansId,
+    fraudScore: paymentInfo.fraudScore || 0,
     price: rawAmount,
     sessionId: session.id,
     status: "pending",
