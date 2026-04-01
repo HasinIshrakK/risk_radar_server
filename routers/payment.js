@@ -3,8 +3,38 @@ const { analyzeRisk } = require("../services/fraudService");
 const router = express.Router();
 const stripeService = require("../services/stripeService");
 const { updatePaymentStatus } = require("../controllers/paymentController");
+const { client } = require("../config/db");
 
+const paymentsCollection = client.db("risk_radar").collection("payments");
 
+//Fetching payment data
+router.get("/", async (req, res) => {
+  const { email } = req.query;
+
+  try {
+    // If an email is provided, find the LATEST payment for that specific user
+    if (email) {
+      const latestPayment = await paymentsCollection
+        .find({ email: email })
+        .sort({ _id: -1 }) // Sort by MongoDB ID (which includes timestamp) to get the newest
+        .limit(1)
+        .toArray();
+
+      if (latestPayment.length === 0) {
+        return res.status(404).json({ message: "No subscription found for this user." });
+      }
+
+      return res.status(200).json(latestPayment[0]);
+    }
+
+    // If NO email is provided, return all payments (Admin view)
+    const allPayments = await paymentsCollection.find({}).toArray();
+    res.status(200).json(allPayments);
+
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // When user clicks "Pay"
 router.post("/checkout", async (req, res) => {
