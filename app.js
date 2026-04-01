@@ -13,6 +13,8 @@ app.get("/", (req, res) => {
 // Routes
 app.use("/api/payment", require("./routers/payment"));
 app.use("/api/users", require("./routers/userRoutes"));
+app.use("/api/notifications", require("./routers/notification"));
+
 const stripe = require("stripe")(process.env.STRIPE_SECRET);
 
 

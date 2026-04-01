@@ -10,13 +10,14 @@ const analyzeRisk = async (transaction) => {
 
   try {
     const { userId, amount } = transaction;
+    const numericAmount = Number(amount);
 
     const usersCollection = client.db("risk_radar").collection("users");
     const txnCollection = client.db("risk_radar").collection("transactions");
 
-    // Check if user already BLOCKED 
+    // Check if user already BLOCKED
     const user = await usersCollection.findOne({
-      _id: new ObjectId(userId),
+      uid: userId,
     });
 
     if (user?.status === "BLOCKED") {
@@ -31,7 +32,7 @@ const analyzeRisk = async (transaction) => {
     //  1. Midnight Rule
     const hour = new Date().getHours();
     if (hour >= 0 && hour < 4) {
-      riskScore += 20;
+      riskScore += 30;
       alert = true;
       reasons.push("Unusual hours (Midnight)");
     }
@@ -54,7 +55,7 @@ const analyzeRisk = async (transaction) => {
     }
 
     //  3. High Amount
-    if (amount > 500) {
+    if (numericAmount > 200) {
       riskScore += 30;
       alert = true;
       reasons.push("High value transaction");
@@ -63,7 +64,7 @@ const analyzeRisk = async (transaction) => {
     // Status Decision
     if (riskScore >= 80) {
       status = "HIGH_RISK";
-    } else if (riskScore >= 60) {
+    } else if (riskScore >= 30) {
       status = "REVIEW_REQUIRED";
     }
 
@@ -79,22 +80,19 @@ const analyzeRisk = async (transaction) => {
         updateData.status = "BLOCKED";
       }
 
-      await usersCollection.updateOne(
-        { _id: new ObjectId(userId) },
-        { $set: updateData }
-      );
+      await usersCollection.updateOne({ uid: userId }, { $set: updateData });
     }
 
     // Save Transaction log
     await txnCollection.insertOne({
-      userId,
-      amount,
-      riskScore,
-      status,
-      alert,
-      reason: reasons.join(" | "),
-      createdAt: new Date(),
-    });
+  userId,
+  amount: numericAmount,
+  riskScore,
+  status,
+  alert,
+  reason: reasons.join(" | "),
+  createdAt: new Date(),
+});
 
     return {
       riskScore,
@@ -102,7 +100,6 @@ const analyzeRisk = async (transaction) => {
       status,
       reasons: reasons.join(" | ") || "None",
     };
-
   } catch (err) {
     console.error("Fraud Engine Error:", err);
 
