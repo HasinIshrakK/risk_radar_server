@@ -9,7 +9,8 @@ const paymentsCollection = client.db("risk_radar").collection("payments");
 
 //Fetching payment data
 router.get("/", async (req, res) => {
-  const { email } = req.query;
+  const { email, limit } = req.query;
+  const lim = parseInt(limit) || (!limit && 100);
 
   try {
     // If an email is provided, find the LATEST payment for that specific user
@@ -17,14 +18,14 @@ router.get("/", async (req, res) => {
       const latestPayment = await paymentsCollection
         .find({ email: email })
         .sort({ _id: -1 }) // Sort by MongoDB ID (which includes timestamp) to get the newest
-        .limit(1)
+        .limit(lim)
         .toArray();
 
       if (latestPayment.length === 0) {
         return res.status(404).json({ message: "No subscription found for this user." });
       }
 
-      return res.status(200).json(latestPayment[0]);
+      return res.status(200).json(latestPayment);
     }
 
     // If NO email is provided, return all payments (Admin view)
