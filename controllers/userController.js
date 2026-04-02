@@ -25,6 +25,8 @@ exports.getUser = async (request, response) => {
     }
 };
 
+
+
 exports.createUser = async (req, res) => {
     try {
         const { name, email, password } = req.body;
